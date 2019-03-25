@@ -10,12 +10,14 @@ import UIKit
 import SceneKit
 import ARKit
 
-class ViewController: UIViewController, ARSCNViewDelegate {
+class ViewController: UIViewController {
 
     @IBOutlet var sceneView: ARSCNView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        sceneView.debugOptions = [.showFeaturePoints, .showWorldOrigin]
         
         // Set the view's delegate
         sceneView.delegate = self
@@ -24,7 +26,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.showsStatistics = true
         
         // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
+        let scene = SCNScene()
         
         // Set the scene to the view
         sceneView.scene = scene
@@ -35,6 +37,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        
+        configuration.planeDetection = [.horizontal]
 
         // Run the view's session
         sceneView.session.run(configuration)
@@ -46,30 +50,43 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Pause the view's session
         sceneView.session.pause()
     }
+}
 
-    // MARK: - ARSCNViewDelegate
+// MARK: - ... ARSCNViewDelegate
+extension ViewController: ARSCNViewDelegate {
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        guard let anchor = anchor as? ARPlaneAnchor else { return }
+        node.addChildNode(createFloor(planeAnchor: anchor))
+    }
     
-/*
-    // Override to create and configure nodes for anchors added to the view's session.
-    func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        guard let anchor = anchor as? ARPlaneAnchor else { return }
+        guard let planeNode = node.childNodes.first else { return }
+        guard let plane = planeNode.geometry as? SCNPlane else { return }
+        guard planeNode.name == "Plane" else { return }
+        
+        planeNode.position = SCNVector3(anchor.center.x, 0, anchor.center.z)
+        let extent = anchor.extent
+        plane.width = CGFloat(extent.x)
+        plane.height = CGFloat(extent.z)
+    }
+}
+
+// MARK: - ... Custom Methods
+extension ViewController {
+    func createFloor(planeAnchor: ARPlaneAnchor) -> SCNNode {
+        let extent = planeAnchor.extent
+        
         let node = SCNNode()
-     
+        node.name = "Plane"
+        
+        let plane = SCNPlane(width: CGFloat(extent.x), height: CGFloat(extent.z))
+        plane.firstMaterial?.diffuse.contents = UIColor.blue
+        node.geometry = plane
+        
+        node.eulerAngles.x = -.pi / 2
+        node.opacity = 0.25
+        
         return node
-    }
-*/
-    
-    func session(_ session: ARSession, didFailWithError error: Error) {
-        // Present an error message to the user
-        
-    }
-    
-    func sessionWasInterrupted(_ session: ARSession) {
-        // Inform the user that the session has been interrupted, for example, by presenting an overlay
-        
-    }
-    
-    func sessionInterruptionEnded(_ session: ARSession) {
-        // Reset tracking and/or remove existing anchors if consistent tracking is required
-        
     }
 }
